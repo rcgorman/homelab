@@ -1,0 +1,8 @@
+[Unit]
+Description=NetBird bridge network
+
+[Network]
+NetworkName=netbird
+Subnet=172.99.0.0/24
+Gateway=172.99.0.1
+IPRange=172.99.0.10-172.99.0.254

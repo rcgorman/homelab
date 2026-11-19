@@ -1,0 +1,21 @@
+[Unit]
+Description=NetBird reverse proxy
+Requires=netbird-server.service netbird-crowdsec.service
+After=netbird-server.service netbird-crowdsec.service
+
+[Container]
+ContainerName=netbird-proxy
+Image=docker.io/netbirdio/reverse-proxy:0.83.1
+UserNS=auto
+Network=netbird.network
+IP=172.99.0.6
+EnvironmentFile=/srv/quadlet/netbird/proxy.env
+PublishPort=51830:51830/udp
+Volume=netbird-proxy-certs.volume:/certs:idmap
+
+[Service]
+Restart=always
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target

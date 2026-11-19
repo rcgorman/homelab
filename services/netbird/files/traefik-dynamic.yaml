@@ -1,0 +1,97 @@
+http:
+  routers:
+    netbird-dashboard:
+      rule: Host(`netbird.gormantech.com`)
+      entryPoints:
+        - websecure
+      middlewares:
+        - crowdsec
+      tls:
+        certResolver: letsencrypt
+      service: dashboard
+      priority: 1
+
+    netbird-grpc:
+      rule: Host(`netbird.gormantech.com`) && (PathPrefix(`/signalexchange.SignalExchange/`) || PathPrefix(`/management.ManagementService/`) || PathPrefix(`/management.ProxyService/`))
+      entryPoints:
+        - websecure
+      observability:
+        accessLogs: false
+      tls:
+        certResolver: letsencrypt
+      service: netbird-server-h2c
+      priority: 100
+
+    netbird-dashboard-api:
+      rule: Host(`netbird.gormantech.com`) && (PathPrefix(`/api`) || PathPrefix(`/oauth2`))
+      entryPoints:
+        - websecure
+      middlewares:
+        - crowdsec
+      tls:
+        certResolver: letsencrypt
+      service: netbird-server
+      priority: 110
+
+    netbird-backend:
+      rule: Host(`netbird.gormantech.com`) && (PathPrefix(`/relay`) || PathPrefix(`/ws-proxy/`) || PathPrefix(`/api`) || PathPrefix(`/oauth2`))
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      service: netbird-server
+      priority: 100
+
+  middlewares:
+    crowdsec:
+      plugin:
+        bouncer:
+          enabled: true
+          logLevel: INFO
+          crowdsecMode: stream
+          crowdsecLapiScheme: http
+          crowdsecLapiHost: netbird-crowdsec:8080
+          crowdsecLapiKeyFile: /run/secrets/crowdsec_bouncer_api_key
+          crowdsecAppsecEnabled: true
+          crowdsecAppsecHost: netbird-crowdsec:7422
+          crowdsecAppsecFailureBlock: true
+          crowdsecAppsecUnreachableBlock: true
+
+  services:
+    dashboard:
+      loadBalancer:
+        servers:
+          - url: http://netbird-dashboard:80
+
+    netbird-server:
+      loadBalancer:
+        servers:
+          - url: http://netbird-server:80
+
+    netbird-server-h2c:
+      loadBalancer:
+        servers:
+          - url: h2c://netbird-server:80
+
+tcp:
+  routers:
+    proxy-passthrough:
+      entryPoints:
+        - websecure
+      rule: HostSNI(`*`) && !HostSNI(`netbird.gormantech.com`)
+      tls:
+        passthrough: true
+      service: proxy-tls
+      priority: 1
+
+  services:
+    proxy-tls:
+      loadBalancer:
+        serversTransport: pp-v2
+        servers:
+          - address: netbird-proxy:8443
+
+  serversTransports:
+    pp-v2:
+      proxyProtocol:
+        version: 2

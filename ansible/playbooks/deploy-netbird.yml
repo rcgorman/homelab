@@ -1,0 +1,206 @@
+---
+- name: Deploy NetBird Quadlet stack
+  hosts: edge01.internal.gormantech.com
+  become: true
+  gather_facts: false
+  vars:
+    netbird_source: "{{ playbook_dir }}/../../services/netbird"
+    netbird_config_dir: /srv/quadlet/netbird
+    netbird_quadlet_dir: /etc/containers/systemd
+    netbird_units:
+      - netbird-crowdsec.service
+      - netbird-traefik.service
+      - netbird-server.service
+      - netbird-dashboard.service
+      - netbird-proxy.service
+
+  pre_tasks:
+    - name: Require NetBird Vault variables
+      ansible.builtin.assert:
+        that:
+          - vault_netbird_proxy_token is defined
+          - vault_netbird_proxy_crowdsec_api_key is defined
+          - vault_netbird_auth_secret is defined
+          - vault_netbird_store_encryption_key is defined
+          - vault_netbird_traefik_crowdsec_bouncer_api_key is defined
+        fail_msg: Populate the shared Vault file with all NetBird secret values.
+      no_log: true
+
+    - name: Confirm Podman is installed
+      ansible.builtin.command: podman --version
+      check_mode: false
+      changed_when: false
+
+  tasks:
+    - name: Create NetBird configuration directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ netbird_config_dir }}"
+        - "{{ netbird_config_dir }}/crowdsec"
+        - "{{ netbird_config_dir }}/crowdsec/acquis.d"
+        - "{{ netbird_config_dir }}/traefik-logs"
+        - "{{ netbird_quadlet_dir }}"
+
+    - name: Copy CrowdSec configuration
+      ansible.builtin.copy:
+        src: "{{ netbird_source }}/files/{{ item }}"
+        dest: "{{ netbird_config_dir }}/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - crowdsec.env
+        - crowdsec/acquis.d/traefik.yaml
+      notify: Restart CrowdSec
+
+    - name: Copy CrowdSec AppSec acquisition without changing ownership
+      ansible.builtin.copy:
+        src: "{{ netbird_source }}/files/crowdsec/acquis.d/appsec.yaml"
+        dest: "{{ netbird_config_dir }}/crowdsec/acquis.d/appsec.yaml"
+        mode: "0644"
+      notify: Restart CrowdSec
+
+    - name: Copy dashboard environment
+      ansible.builtin.copy:
+        src: "{{ netbird_source }}/files/dashboard.env"
+        dest: "{{ netbird_config_dir }}/dashboard.env"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart NetBird dashboard
+
+    - name: Copy Traefik dynamic configuration
+      ansible.builtin.copy:
+        src: "{{ netbird_source }}/files/traefik-dynamic.yaml"
+        dest: "{{ netbird_config_dir }}/traefik-dynamic.yaml"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart Traefik
+
+    - name: Render NetBird proxy environment
+      ansible.builtin.template:
+        src: "{{ netbird_source }}/templates/proxy.env.j2"
+        dest: "{{ netbird_config_dir }}/proxy.env"
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+      notify: Restart NetBird proxy
+
+    - name: Render NetBird server configuration
+      ansible.builtin.template:
+        src: "{{ netbird_source }}/templates/config.yaml.j2"
+        dest: "{{ netbird_config_dir }}/config.yaml"
+        owner: root
+        group: root
+        mode: "0644"
+      no_log: true
+      notify: Restart NetBird server
+
+    - name: Ensure Traefik CrowdSec bouncer secret exists
+      containers.podman.podman_secret:
+        name: crowdsec_bouncer_api_key
+        data: "{{ vault_netbird_traefik_crowdsec_bouncer_api_key }}"
+        state: present
+      when: not ansible_check_mode
+      no_log: true
+      notify: Restart Traefik
+
+    - name: Install NetBird network and volume Quadlets
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ netbird_quadlet_dir }}/{{ item | basename }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop: >-
+        {{
+          query('ansible.builtin.fileglob', netbird_source ~ '/quadlets/*.network')
+          + query('ansible.builtin.fileglob', netbird_source ~ '/quadlets/*.volume')
+        }}
+      notify:
+        - Reload systemd
+        - Restart CrowdSec
+        - Restart Traefik
+        - Restart NetBird server
+        - Restart NetBird dashboard
+        - Restart NetBird proxy
+
+    - name: Install NetBird container Quadlets
+      ansible.builtin.copy:
+        src: "{{ netbird_source }}/quadlets/{{ item.file }}"
+        dest: "{{ netbird_quadlet_dir }}/{{ item.file }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - { file: netbird-crowdsec.container, restart: Restart CrowdSec }
+        - { file: netbird-traefik.container, restart: Restart Traefik }
+        - { file: netbird-server.container, restart: Restart NetBird server }
+        - { file: netbird-dashboard.container, restart: Restart NetBird dashboard }
+        - { file: netbird-proxy.container, restart: Restart NetBird proxy }
+      notify:
+        - Reload systemd
+        - "{{ item.restart }}"
+
+    - name: Apply changed Quadlets and configuration
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable and start NetBird services
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop: "{{ netbird_units }}"
+      when: not ansible_check_mode
+
+    - name: Collect service states
+      ansible.builtin.service_facts:
+      when: not ansible_check_mode
+
+    - name: Verify NetBird systemd units are active
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services[item].state == 'running'
+      loop: "{{ netbird_units }}"
+      when: not ansible_check_mode
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: not ansible_check_mode
+
+    - name: Restart CrowdSec
+      ansible.builtin.systemd_service:
+        name: netbird-crowdsec.service
+        state: restarted
+      when: not ansible_check_mode
+
+    - name: Restart Traefik
+      ansible.builtin.systemd_service:
+        name: netbird-traefik.service
+        state: restarted
+      when: not ansible_check_mode
+
+    - name: Restart NetBird server
+      ansible.builtin.systemd_service:
+        name: netbird-server.service
+        state: restarted
+      when: not ansible_check_mode
+
+    - name: Restart NetBird dashboard
+      ansible.builtin.systemd_service:
+        name: netbird-dashboard.service
+        state: restarted
+      when: not ansible_check_mode
+
+    - name: Restart NetBird proxy
+      ansible.builtin.systemd_service:
+        name: netbird-proxy.service
+        state: restarted
+      when: not ansible_check_mode

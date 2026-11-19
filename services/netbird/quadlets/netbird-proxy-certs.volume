@@ -1,0 +1,5 @@
+[Unit]
+Description=NetBird proxy TLS certificates
+
+[Volume]
+VolumeName=netbird-proxy-certs

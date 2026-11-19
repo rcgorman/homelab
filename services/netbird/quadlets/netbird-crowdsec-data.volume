@@ -1,0 +1,5 @@
+[Unit]
+Description=CrowdSec database and hub data
+
+[Volume]
+VolumeName=netbird-crowdsec-data

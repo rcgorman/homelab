@@ -1,0 +1,12 @@
+# Local workstation metadata
+.DS_Store
+
+# Vault passwords stay outside the repository.
+.vault_password
+.vault_pass
+vault-password.txt
+
+# Imported live NetBird files contain credentials or runtime data.
+/services/netbird/**/config.yaml
+/services/netbird/**/proxy.env
+/services/netbird/**/traefik-logs/

@@ -1,0 +1,5 @@
+[Unit]
+Description=CrowdSec configuration and API credentials
+
+[Volume]
+VolumeName=netbird-crowdsec-config

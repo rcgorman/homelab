@@ -1,0 +1,18 @@
+[Unit]
+Description=NetBird dashboard
+Requires=netbird-traefik.service
+After=netbird-traefik.service
+
+[Container]
+ContainerName=netbird-dashboard
+Image=docker.io/netbirdio/dashboard:v2.97.0
+UserNS=auto
+EnvironmentFile=/srv/quadlet/netbird/dashboard.env
+Network=netbird.network
+IP=172.99.0.4
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

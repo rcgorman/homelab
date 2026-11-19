@@ -1,0 +1,22 @@
+[Unit]
+Description=NetBird management, signal, relay, and STUN server
+Requires=netbird-traefik.service
+After=netbird-traefik.service
+
+[Container]
+ContainerName=netbird-server
+Image=docker.io/netbirdio/netbird-server:0.83.1
+UserNS=auto
+Entrypoint=/go/bin/netbird-server
+Exec=--config /etc/netbird/config.yaml
+Network=netbird.network
+IP=172.99.0.5
+PublishPort=3478:3478/udp
+Volume=netbird-data.volume:/var/lib/netbird:idmap
+Volume=/srv/quadlet/netbird/config.yaml:/etc/netbird/config.yaml:ro,Z
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

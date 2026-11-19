@@ -1,0 +1,5 @@
+[Unit]
+Description=NetBird Traefik ACME storage
+
+[Volume]
+VolumeName=netbird-traefik-letsencrypt

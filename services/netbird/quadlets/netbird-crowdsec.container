@@ -1,0 +1,28 @@
+[Unit]
+Description=CrowdSec local API for NetBird proxy and Traefik
+
+[Container]
+ContainerName=netbird-crowdsec
+Image=docker.io/crowdsecurity/crowdsec:v1.8.2
+UserNS=auto
+Network=netbird.network
+IP=172.99.0.3
+EnvironmentFile=/srv/quadlet/netbird/crowdsec.env
+Volume=netbird-crowdsec-config.volume:/etc/crowdsec:idmap
+Volume=netbird-crowdsec-data.volume:/var/lib/crowdsec/data:idmap
+Volume=/srv/quadlet/netbird/crowdsec/acquis.d/appsec.yaml:/etc/crowdsec/acquis.d/appsec.yaml:ro,Z
+Volume=/srv/quadlet/netbird/crowdsec/acquis.d/traefik.yaml:/etc/crowdsec/acquis.d/traefik.yaml:ro,Z
+Volume=/srv/quadlet/netbird/traefik-logs:/var/log/traefik:ro,z
+HealthCmd=cscli lapi status >/dev/null 2>&1 && bash -c '</dev/tcp/127.0.0.1/7422'
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=15
+HealthStartPeriod=30s
+HealthOnFailure=kill
+
+[Service]
+Restart=always
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
