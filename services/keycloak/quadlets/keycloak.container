@@ -5,7 +5,7 @@ After=keycloak-database.service
 
 [Container]
 ContainerName=keycloak
-Image=quay.io/keycloak/keycloak:26.8.1
+Image=quay.io/keycloak/keycloak:26.8.2
 UserNS=auto
 Network=keycloak.network
 PublishPort=18081:8080
