@@ -5,7 +5,7 @@ After=netbird-server.service netbird-crowdsec.service
 
 [Container]
 ContainerName=netbird-proxy
-Image=docker.io/netbirdio/reverse-proxy:0.83.1
+Image=docker.io/netbirdio/reverse-proxy:0.83.2
 UserNS=auto
 Network=netbird.network
 IP=172.99.0.6
