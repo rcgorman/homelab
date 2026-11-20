@@ -3,7 +3,7 @@ Description=Keycloak PostgreSQL
 
 [Container]
 ContainerName=keycloak_postgres
-Image=docker.io/library/postgres:17.11
+Image=docker.io/library/postgres:17.12
 UserNS=auto
 Network=keycloak.network
 NetworkAlias=database
