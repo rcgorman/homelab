@@ -1,0 +1,5 @@
+[Unit]
+Description=Keycloak isolated network
+
+[Network]
+NetworkName=keycloak

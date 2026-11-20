@@ -106,6 +106,7 @@
         name: crowdsec_bouncer_api_key
         data: "{{ vault_netbird_traefik_crowdsec_bouncer_api_key }}"
         state: present
+        skip_existing: true
       when: not ansible_check_mode
       no_log: true
       notify: Restart Traefik

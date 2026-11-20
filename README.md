@@ -34,3 +34,11 @@ When deploying NetBird over edge01's public IP, disconnect the NetBird client on
 Renovate finds Quadlet image updates and creates pull requests. Review and merge a change, pull it locally, then run the playbook manually. There is no automatic deployment yet. I may setup a workflow for that once everything is done.
 
 The server's rendered `config.yaml` currently uses the host's existing `0644` mode even though it contains an encryption key. Its permissions should be tightened after confirming the container can still read it.
+
+## Keycloak on auth01
+
+The Keycloak Quadlets and IPA CA certificate bundle live in `services/keycloak/`. `ansible/playbooks/deploy-keycloak.yml` copies the certificate to `/srv/quadlet/keycloak/` before applying the Quadlets on `auth01.internal.gormantech.com`.
+
+Add the existing `keycloak_db_password` value to the shared Vault file as `vault_keycloak_db_password`. Copy its value exactly. The playbook creates the Podman secret from Vault when missing and preserves the existing one on auth01.
+
+Pass `--vault-id homelab@prompt` to Keycloak commands too. Ansible loads the shared encrypted `group_vars/all/vault.yml` for every host, even before the playbook uses a Vault variable.

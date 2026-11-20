@@ -1,0 +1,25 @@
+[Unit]
+Description=Keycloak PostgreSQL
+
+[Container]
+ContainerName=keycloak_postgres
+Image=docker.io/library/postgres:17.11
+UserNS=auto
+Network=keycloak.network
+NetworkAlias=database
+Environment=POSTGRES_USER=keycloak
+Environment=POSTGRES_DB=keycloak
+Environment=POSTGRES_INITDB_ARGS=--data-checksums
+Environment=POSTGRES_PASSWORD_FILE=/run/secrets/keycloak_db_password
+Volume=keycloak-postgres.volume:/var/lib/postgresql/data:U
+Secret=keycloak_db_password,type=mount,target=keycloak_db_password
+ShmSize=128m
+HealthCmd=pg_isready -U keycloak -d keycloak
+Notify=healthy
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

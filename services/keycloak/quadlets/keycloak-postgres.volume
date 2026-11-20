@@ -1,0 +1,5 @@
+[Unit]
+Description=Volume for Keycloak PostgreSQL
+
+[Volume]
+VolumeName=keycloak_postgres

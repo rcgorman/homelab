@@ -1,0 +1,134 @@
+---
+- name: Deploy Keycloak Quadlet stack
+  hosts: auth01.internal.gormantech.com
+  become: true
+  gather_facts: false
+  vars:
+    keycloak_source: "{{ playbook_dir }}/../../services/keycloak"
+    keycloak_config_dir: /srv/quadlet/keycloak
+    keycloak_quadlet_dir: /etc/containers/systemd
+    keycloak_units:
+      - keycloak-database.service
+      - keycloak.service
+
+  pre_tasks:
+    - name: Require Keycloak Vault variable
+      ansible.builtin.assert:
+        that:
+          - vault_keycloak_db_password is defined
+          - vault_keycloak_db_password | length > 0
+        fail_msg: Add vault_keycloak_db_password to the shared Vault file.
+      no_log: true
+
+    - name: Confirm Podman is installed
+      ansible.builtin.command: podman --version
+      check_mode: false
+      changed_when: false
+
+  tasks:
+    - name: Ensure Keycloak database password secret exists
+      containers.podman.podman_secret:
+        name: keycloak_db_password
+        data: "{{ vault_keycloak_db_password }}"
+        state: present
+        skip_existing: true
+      when: not ansible_check_mode
+      no_log: true
+      notify:
+        - Restart Keycloak database
+        - Restart Keycloak
+
+    - name: Create Keycloak configuration and Quadlet directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ keycloak_config_dir }}"
+        - "{{ keycloak_quadlet_dir }}"
+
+    - name: Copy IPA CA certificate bundle
+      ansible.builtin.copy:
+        src: "{{ keycloak_source }}/files/ipa-ca.crt"
+        dest: "{{ keycloak_config_dir }}/ipa-ca.crt"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart Keycloak
+
+    - name: Install Keycloak network and volume Quadlets
+      ansible.builtin.copy:
+        src: "{{ keycloak_source }}/quadlets/{{ item }}"
+        dest: "{{ keycloak_quadlet_dir }}/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - keycloak.network
+        - keycloak-postgres.volume
+      notify:
+        - Reload systemd
+        - Restart Keycloak database
+        - Restart Keycloak
+
+    - name: Install Keycloak database Quadlet
+      ansible.builtin.copy:
+        src: "{{ keycloak_source }}/quadlets/keycloak-database.container"
+        dest: "{{ keycloak_quadlet_dir }}/keycloak-database.container"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Keycloak database
+        - Restart Keycloak
+
+    - name: Install Keycloak Quadlet
+      ansible.builtin.copy:
+        src: "{{ keycloak_source }}/quadlets/keycloak.container"
+        dest: "{{ keycloak_quadlet_dir }}/keycloak.container"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Keycloak
+
+    - name: Apply changed Keycloak files
+      ansible.builtin.meta: flush_handlers
+
+    - name: Start Keycloak services
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        state: started
+      loop: "{{ keycloak_units }}"
+      when: not ansible_check_mode
+
+    - name: Collect service states
+      ansible.builtin.service_facts:
+      when: not ansible_check_mode
+
+    - name: Verify Keycloak systemd units are active
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services[item].state == 'running'
+      loop: "{{ keycloak_units }}"
+      when: not ansible_check_mode
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: not ansible_check_mode
+
+    - name: Restart Keycloak database
+      ansible.builtin.systemd_service:
+        name: keycloak-database.service
+        state: restarted
+      when: not ansible_check_mode
+
+    - name: Restart Keycloak
+      ansible.builtin.systemd_service:
+        name: keycloak.service
+        state: restarted
+      when: not ansible_check_mode
