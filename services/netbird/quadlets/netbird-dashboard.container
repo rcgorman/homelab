@@ -5,7 +5,7 @@ After=netbird-traefik.service
 
 [Container]
 ContainerName=netbird-dashboard
-Image=docker.io/netbirdio/dashboard:v2.97.0
+Image=docker.io/netbirdio/dashboard:v2.98.0
 UserNS=auto
 EnvironmentFile=/srv/quadlet/netbird/dashboard.env
 Network=netbird.network
