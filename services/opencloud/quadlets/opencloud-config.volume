@@ -1,0 +1,5 @@
+[Unit]
+Description=OpenCloud configuration volume
+
+[Volume]
+VolumeName=opencloud_config

@@ -42,3 +42,9 @@ The Keycloak Quadlets and IPA CA certificate bundle live in `services/keycloak/`
 Add the existing `keycloak_db_password` value to the shared Vault file as `vault_keycloak_db_password`. Copy its value exactly. The playbook creates the Podman secret from Vault when missing and preserves the existing one on auth01.
 
 Pass `--vault-id homelab@prompt` to Keycloak commands too. Ansible loads the shared encrypted `group_vars/all/vault.yml` for every host, even before the playbook uses a Vault variable.
+
+## Apps on apps01
+
+Homebridge, Immich, and OpenCloud Quadlets live under `services/` and have separate `deploy-*.yml` playbooks targeting `apps01.internal.gormantech.com`. Use the same inventory and Vault ID when checking or deploying each playbook.
+
+Immich and OpenCloud need their existing Podman secret values in Vault. Preserve their application data separately; OpenCloud's `opencloud_config` volume and `/mnt/opencloud/data` must be backed up and restored together.

@@ -1,0 +1,6 @@
+[Unit]
+Description=Homebridge data volume
+
+[Volume]
+VolumeName=homebridge_data
+

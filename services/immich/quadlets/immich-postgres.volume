@@ -1,0 +1,6 @@
+[Unit]
+Description=Persistent local volume for Immich PostgreSQL
+
+[Volume]
+VolumeName=immich_postgres
+

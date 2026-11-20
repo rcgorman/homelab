@@ -1,0 +1,185 @@
+---
+- name: Deploy Immich Quadlet stack
+  hosts: apps01.internal.gormantech.com
+  become: true
+  gather_facts: false
+  vars:
+    immich_source: "{{ playbook_dir }}/../../services/immich/quadlets"
+    immich_quadlet_dir: /etc/containers/systemd
+    immich_units:
+      - immich-database.service
+      - immich-redis.service
+      - immich-machine-learning.service
+      - immich-server.service
+
+  pre_tasks:
+    - name: Require Immich database password in Vault
+      ansible.builtin.assert:
+        that:
+          - vault_immich_db_password is defined
+          - vault_immich_db_password | length > 0
+        fail_msg: Add vault_immich_db_password to the shared Vault file.
+      no_log: true
+
+    - name: Confirm Podman is installed
+      ansible.builtin.command: podman --version
+      check_mode: false
+      changed_when: false
+
+    - name: Confirm Immich library is mounted
+      ansible.builtin.command: mountpoint -q /mnt/immich/library
+      check_mode: false
+      changed_when: false
+
+  tasks:
+    - name: Ensure Immich database password secret exists
+      containers.podman.podman_secret:
+        name: immich_db_password
+        data: "{{ vault_immich_db_password }}"
+        state: present
+        skip_existing: true
+      when: not ansible_check_mode
+      no_log: true
+      notify:
+        - Restart Immich database
+        - Restart Immich server
+
+    - name: Create Quadlet directory
+      ansible.builtin.file:
+        path: "{{ immich_quadlet_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Install Immich network Quadlet
+      ansible.builtin.copy:
+        src: "{{ immich_source }}/immich.network"
+        dest: "{{ immich_quadlet_dir }}/immich.network"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Immich database
+        - Restart Immich Redis
+        - Restart Immich machine learning
+        - Restart Immich server
+
+    - name: Install Immich PostgreSQL volume Quadlet
+      ansible.builtin.copy:
+        src: "{{ immich_source }}/immich-postgres.volume"
+        dest: "{{ immich_quadlet_dir }}/immich-postgres.volume"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Immich database
+        - Restart Immich server
+
+    - name: Install Immich model cache volume Quadlet
+      ansible.builtin.copy:
+        src: "{{ immich_source }}/immich-model-cache.volume"
+        dest: "{{ immich_quadlet_dir }}/immich-model-cache.volume"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Immich machine learning
+
+    - name: Install Immich database Quadlet
+      ansible.builtin.copy:
+        src: "{{ immich_source }}/immich-database.container"
+        dest: "{{ immich_quadlet_dir }}/immich-database.container"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Immich database
+        - Restart Immich server
+
+    - name: Install Immich Redis Quadlet
+      ansible.builtin.copy:
+        src: "{{ immich_source }}/immich-redis.container"
+        dest: "{{ immich_quadlet_dir }}/immich-redis.container"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Immich Redis
+        - Restart Immich server
+
+    - name: Install Immich machine learning Quadlet
+      ansible.builtin.copy:
+        src: "{{ immich_source }}/immich-machine-learning.container"
+        dest: "{{ immich_quadlet_dir }}/immich-machine-learning.container"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Immich machine learning
+
+    - name: Install Immich server Quadlet
+      ansible.builtin.copy:
+        src: "{{ immich_source }}/immich-server.container"
+        dest: "{{ immich_quadlet_dir }}/immich-server.container"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Immich server
+
+    - name: Apply changed Immich files
+      ansible.builtin.meta: flush_handlers
+
+    - name: Start Immich services
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        state: started
+      loop: "{{ immich_units }}"
+      when: not ansible_check_mode
+
+    - name: Collect service states
+      ansible.builtin.service_facts:
+      when: not ansible_check_mode
+
+    - name: Verify Immich systemd units are active
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services[item].state == 'running'
+      loop: "{{ immich_units }}"
+      when: not ansible_check_mode
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: not ansible_check_mode
+
+    - name: Restart Immich database
+      ansible.builtin.systemd_service:
+        name: immich-database.service
+        state: restarted
+      when: not ansible_check_mode
+
+    - name: Restart Immich Redis
+      ansible.builtin.systemd_service:
+        name: immich-redis.service
+        state: restarted
+      when: not ansible_check_mode
+
+    - name: Restart Immich machine learning
+      ansible.builtin.systemd_service:
+        name: immich-machine-learning.service
+        state: restarted
+      when: not ansible_check_mode
+
+    - name: Restart Immich server
+      ansible.builtin.systemd_service:
+        name: immich-server.service
+        state: restarted
+      when: not ansible_check_mode

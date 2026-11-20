@@ -1,0 +1,36 @@
+[Unit]
+Description=Immich application server
+Requires=immich-database.service immich-redis.service
+After=immich-database.service immich-redis.service
+Wants=immich-machine-learning.service
+RequiresMountsFor=/mnt/immich/library
+AssertPathIsMountPoint=/mnt/immich/library
+
+[Container]
+ContainerName=immich_server
+Image=ghcr.io/immich-app/immich-server:v3
+Network=immich.network
+NetworkAlias=immich-server
+DNS=10.6.13.1
+PublishPort=2283:2283
+# Keep container UID/GID 3000 mapped to the TrueNAS owner; remap other IDs.
+UserNS=auto:uidmapping=3000:3000:1,gidmapping=3000:3000:1
+User=3000
+Group=3000
+Environment=TZ=America/New_York
+Environment=DB_HOSTNAME=database
+Environment=DB_USERNAME=postgres
+Environment=DB_DATABASE_NAME=immich
+Environment=DB_PASSWORD_FILE=/run/secrets/immich_db_password
+Environment=REDIS_HOSTNAME=redis
+Volume=/mnt/immich/library:/data
+Volume=/etc/localtime:/etc/localtime:ro
+SecurityLabelDisable=true
+Secret=immich_db_password,type=mount,target=immich_db_password,uid=3000,gid=3000,mode=0400
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

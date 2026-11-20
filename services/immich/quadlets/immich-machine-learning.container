@@ -1,0 +1,19 @@
+[Unit]
+Description=Immich machine learning
+
+[Container]
+ContainerName=immich_machine_learning
+Image=ghcr.io/immich-app/immich-machine-learning:v3
+UserNS=auto
+Network=immich.network
+NetworkAlias=immich-machine-learning
+Environment=TZ=America/New_York
+Environment=MACHINE_LEARNING_MODEL_REVISION=v2
+Volume=immich-model-cache.volume:/cache:U
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,74 @@
+---
+- name: Deploy Homebridge Quadlet
+  hosts: apps01.internal.gormantech.com
+  become: true
+  gather_facts: false
+  vars:
+    homebridge_source: "{{ playbook_dir }}/../../services/homebridge/quadlets"
+    homebridge_quadlet_dir: /etc/containers/systemd
+
+  pre_tasks:
+    - name: Confirm Podman is installed
+      ansible.builtin.command: podman --version
+      check_mode: false
+      changed_when: false
+
+  tasks:
+    - name: Create Quadlet directory
+      ansible.builtin.file:
+        path: "{{ homebridge_quadlet_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Install Homebridge data volume Quadlet
+      ansible.builtin.copy:
+        src: "{{ homebridge_source }}/homebridge-data.volume"
+        dest: "{{ homebridge_quadlet_dir }}/homebridge-data.volume"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Homebridge
+
+    - name: Install Homebridge container Quadlet
+      ansible.builtin.copy:
+        src: "{{ homebridge_source }}/homebridge.container"
+        dest: "{{ homebridge_quadlet_dir }}/homebridge.container"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Homebridge
+
+    - name: Apply changed Homebridge files
+      ansible.builtin.meta: flush_handlers
+
+    - name: Start Homebridge service
+      ansible.builtin.systemd_service:
+        name: homebridge.service
+        state: started
+      when: not ansible_check_mode
+
+    - name: Collect service states
+      ansible.builtin.service_facts:
+      when: not ansible_check_mode
+
+    - name: Verify Homebridge is active
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['homebridge.service'].state == 'running'
+      when: not ansible_check_mode
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: not ansible_check_mode
+
+    - name: Restart Homebridge
+      ansible.builtin.systemd_service:
+        name: homebridge.service
+        state: restarted
+      when: not ansible_check_mode
