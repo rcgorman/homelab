@@ -3,7 +3,7 @@ Description=Immich machine learning
 
 [Container]
 ContainerName=immich_machine_learning
-Image=ghcr.io/immich-app/immich-machine-learning:v3.4.1
+Image=ghcr.io/immich-app/immich-machine-learning:v3.4.2
 UserNS=auto
 Network=immich.network
 NetworkAlias=immich-machine-learning
