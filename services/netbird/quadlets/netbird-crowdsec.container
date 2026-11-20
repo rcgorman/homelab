@@ -4,6 +4,7 @@ Description=CrowdSec local API for NetBird proxy and Traefik
 [Container]
 ContainerName=netbird-crowdsec
 Image=docker.io/crowdsecurity/crowdsec:v1.8.2
+Notify=healthy
 UserNS=auto
 Network=netbird.network
 IP=172.99.0.3
@@ -21,6 +22,7 @@ HealthStartPeriod=30s
 HealthOnFailure=kill
 
 [Service]
+TimeoutStartSec=5min
 Restart=always
 RestartSec=10s
 

@@ -33,7 +33,6 @@ Environment=TRAEFIK_EXPERIMENTAL_PLUGINS_BOUNCER_VERSION=v1.7.1
 Secret=crowdsec_bouncer_api_key,type=mount,target=/run/secrets/crowdsec_bouncer_api_key
 
 [Service]
-ExecStartPre=/usr/bin/podman healthcheck run netbird-crowdsec
 Restart=always
 RestartSec=10s
 

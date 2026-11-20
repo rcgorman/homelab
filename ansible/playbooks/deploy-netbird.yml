@@ -130,22 +130,60 @@
         - Restart NetBird dashboard
         - Restart NetBird proxy
 
-    - name: Install NetBird container Quadlets
+    - name: Install CrowdSec Quadlet
       ansible.builtin.copy:
-        src: "{{ netbird_source }}/quadlets/{{ item.file }}"
-        dest: "{{ netbird_quadlet_dir }}/{{ item.file }}"
+        src: "{{ netbird_source }}/quadlets/netbird-crowdsec.container"
+        dest: "{{ netbird_quadlet_dir }}/netbird-crowdsec.container"
         owner: root
         group: root
         mode: "0644"
-      loop:
-        - { file: netbird-crowdsec.container, restart: Restart CrowdSec }
-        - { file: netbird-traefik.container, restart: Restart Traefik }
-        - { file: netbird-server.container, restart: Restart NetBird server }
-        - { file: netbird-dashboard.container, restart: Restart NetBird dashboard }
-        - { file: netbird-proxy.container, restart: Restart NetBird proxy }
       notify:
         - Reload systemd
-        - "{{ item.restart }}"
+        - Restart CrowdSec
+
+    - name: Install Traefik Quadlet
+      ansible.builtin.copy:
+        src: "{{ netbird_source }}/quadlets/netbird-traefik.container"
+        dest: "{{ netbird_quadlet_dir }}/netbird-traefik.container"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Traefik
+
+    - name: Install NetBird server Quadlet
+      ansible.builtin.copy:
+        src: "{{ netbird_source }}/quadlets/netbird-server.container"
+        dest: "{{ netbird_quadlet_dir }}/netbird-server.container"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart NetBird server
+
+    - name: Install NetBird dashboard Quadlet
+      ansible.builtin.copy:
+        src: "{{ netbird_source }}/quadlets/netbird-dashboard.container"
+        dest: "{{ netbird_quadlet_dir }}/netbird-dashboard.container"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart NetBird dashboard
+
+    - name: Install NetBird proxy Quadlet
+      ansible.builtin.copy:
+        src: "{{ netbird_source }}/quadlets/netbird-proxy.container"
+        dest: "{{ netbird_quadlet_dir }}/netbird-proxy.container"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart NetBird proxy
 
     - name: Apply changed Quadlets and configuration
       ansible.builtin.meta: flush_handlers
