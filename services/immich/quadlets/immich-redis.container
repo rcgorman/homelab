@@ -3,7 +3,7 @@ Description=Immich Valkey
 
 [Container]
 ContainerName=immich_redis
-Image=docker.io/valkey/valkey:9@sha256:c123e3715db63d06d4ad6964884037aa0d5d4d703939b9929954112889708e1d
+Image=docker.io/valkey/valkey:9@sha256:1c2b25b09f354c66fe994733acdf12fcfd4bdf6f3bd92b88a93a70378d884056
 UserNS=auto
 Network=immich.network
 NetworkAlias=redis
