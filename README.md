@@ -2,6 +2,14 @@
 
 This repo manages the configuration for my RHEL VMs and their Podman Quadlet services. Ansible deploys the files; application data and generated state stay on the hosts and need separate backups.
 
+## RHEL SSH baseline
+
+`ansible/playbooks/rhel-baseline.yml` uses the RHEL `redhat.rhel_system_roles.sshd` role to manage `/etc/ssh/sshd_config.d/00-ssh-baseline.conf` on each host, one at a time. It disables password and keyboard-interactive authentication, direct root login, and X11 forwarding. The role validates the configuration and reloads SSH. Install the `rhel-system-roles` RPM on a RHEL host and copy its `redhat/rhel_system_roles` collection from `/usr/share/ansible/collections/ansible_collections/` into the same path under `~/.ansible/collections/ansible_collections/` on the controller. Then run:
+
+```bash
+ansible-playbook --vault-id homelab@prompt -i ansible/inventory/hosts.yml ansible/playbooks/rhel-baseline.yml
+```
+
 ## NetBird on edge01
 
 The NetBird stack on `edge01.internal.gormantech.com` is the first service managed here. Its playbook has been run successfully and tested by restoring a changed Quadlet and starting stopped containers.

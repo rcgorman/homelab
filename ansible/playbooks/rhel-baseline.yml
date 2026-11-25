@@ -1,0 +1,16 @@
+---
+- name: Apply RHEL access baseline
+  hosts: all
+  become: true
+  serial: 1
+
+  vars:
+    sshd_config_file: /etc/ssh/sshd_config.d/00-ssh-baseline.conf
+    sshd_config:
+      PasswordAuthentication: false
+      KbdInteractiveAuthentication: false
+      PermitRootLogin: false
+      X11Forwarding: false
+
+  roles:
+    - redhat.rhel_system_roles.sshd
