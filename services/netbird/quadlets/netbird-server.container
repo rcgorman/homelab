@@ -5,7 +5,7 @@ After=netbird-traefik.service
 
 [Container]
 ContainerName=netbird-server
-Image=docker.io/netbirdio/netbird-server:0.83.2
+Image=docker.io/netbirdio/netbird-server:0.84.0
 UserNS=auto
 Entrypoint=/go/bin/netbird-server
 Exec=--config /etc/netbird/config.yaml
